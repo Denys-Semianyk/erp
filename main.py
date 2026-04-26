@@ -3,8 +3,7 @@ import sqlite3
 import pandas as pd
 from datetime import date
 
-# --- 1. НАЛАШТУВАННЯ ТА БАЗА ДАНИХ ---
-st.set_page_config(page_title="ERP Документообіг v2.0", layout="wide")
+st.set_page_config(page_title="ERP Документообіг", layout="wide")
 
 def get_connection():
     return sqlite3.connect("documents.db", check_same_thread=False)
@@ -34,7 +33,6 @@ def init_db():
         )
     ''')
     
-    # Додаємо базові шаблони, якщо таблиця порожня
     cursor.execute("SELECT COUNT(*) FROM templates")
     if cursor.fetchone()[0] == 0:
         base_templates = [
@@ -50,7 +48,6 @@ def init_db():
 
 init_db()
 
-# --- 2. ФУНКЦІЇ КЕРУВАННЯ ---
 def update_status(doc_id, new_status):
     conn = get_connection()
     curr = conn.cursor()
@@ -65,20 +62,17 @@ def delete_doc(doc_id):
     conn.commit()
     conn.close()
 
-# --- 3. ІНТЕРФЕЙС ТА БІЧНА ПАНЕЛЬ ---
 st.title("Система моніторингу документів")
 
 with st.sidebar:
     st.header("Швидке заповнення")
-    
-    # Отримуємо шаблони для вибору
+
     conn = get_connection()
     tpl_df = pd.read_sql_query("SELECT * FROM templates", conn)
     conn.close()
     
     selected_template = st.selectbox("Оберіть шаблон:", ["Свій варіант"] + tpl_df['title'].tolist())
     
-    # Визначаємо початкові значення на основі шаблону
     if selected_template != "Свій варіант":
         tpl_data = tpl_df[tpl_df['title'] == selected_template].iloc[0]
         init_type = tpl_data['default_type']
@@ -91,7 +85,6 @@ with st.sidebar:
     st.header("➕ Новий запис")
     
     with st.form("add_form", clear_on_submit=True):
-        # Поля автоматично заповнюються з шаблону
         d_type_list = ["Наказ", "Договір", "Угода", "Рахунок"]
         doc_type = st.selectbox("Тип", d_type_list, index=d_type_list.index(init_type))
         
@@ -109,7 +102,6 @@ with st.sidebar:
         dline = st.date_input("Термін виконання", date.today())
         
         if st.form_submit_button("Зберегти до бази"):
-            # Збираємо список розсилки в текст
             notifications = []
             if notify_acc: notifications.append("Бухгалтерія")
             if notify_hr: notifications.append("Кадри")
@@ -131,13 +123,11 @@ with st.sidebar:
             st.success("Додано успішно!")
             st.rerun()
 
-# --- 4. ОСНОВНИЙ КОНТЕНТ ---
 conn = get_connection()
 df = pd.read_sql_query("SELECT * FROM documents", conn)
 conn.close()
 
 if not df.empty:
-    # Аналітика
     df['deadline'] = pd.to_datetime(df['deadline'])
     df['Днів залишилось'] = (df['deadline'].dt.date - date.today()).apply(lambda x: x.days)
 
@@ -149,11 +139,9 @@ if not df.empty:
 
     st.write("### Реєстр завдань")
     
-    # Експорт
     csv = df.to_csv(index=False).encode('utf-8-sig')
     st.download_button("Завантажити звіт CSV", csv, f"report_{date.today()}.csv", "text/csv")
 
-    # Підсвітка
     def style_rows(row):
         if row['status'] == 'Виконано':
             return ['background-color: rgba(0, 255, 0, 0.05); color: gray'] * len(row)
@@ -165,7 +153,6 @@ if not df.empty:
 
     st.divider()
 
-    # --- КЕРУВАННЯ ---
     st.subheader("Швидкі дії")
     c_sel, c_btn = st.columns([1, 2])
     
